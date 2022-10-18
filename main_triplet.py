@@ -57,7 +57,7 @@ def detect_batch(model,device, anchor_img, anchor_label, querry_embedded):
             
 def test(device, train_dataset, test_loader):
     model = Triplet_SiameseNetwork()
-    model.load_state_dict(torch.load("trained_model.pth")['model_state_dict'])
+    model.load_state_dict(torch.load("saved_models/trained_model.pth")['model_state_dict'])
     model.eval()
     model.to(device)
     with torch.no_grad():    
@@ -173,11 +173,11 @@ def main(Train=True):
         
         torch.save({"model_state_dict": model.state_dict(),
                 "optimzier_state_dict": optimizer.state_dict()
-            }, "trained_model.pth")
+            }, "saved_models/trained_model.pth")
     
     else: 
         # model = Triplet_SiameseNetwork()
-        # model.load_state_dict(torch.load("trained_model.pth")['model_state_dict'])
+        # model.load_state_dict(torch.load("saved_models/trained_model.pth")['model_state_dict'])
         # model.eval()
         # with torch.no_grad():    
         #     querry_embedded=[]            
