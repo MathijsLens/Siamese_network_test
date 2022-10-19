@@ -176,16 +176,6 @@ def main(Train=True):
             }, "saved_models/trained_model.pth")
     
     else: 
-        # model = Triplet_SiameseNetwork()
-        # model.load_state_dict(torch.load("saved_models/trained_model.pth")['model_state_dict'])
-        # model.eval()
-        # with torch.no_grad():    
-        #     querry_embedded=[]            
-        #     # get embedded querry's
-        #     for img in train_dataset.querry:
-        #         img=img.unsqueeze(0)
-        #         querry_embedded.append(model(img).cpu().numpy())
-        #     detect(model,train_dataset.data[9].unsqueeze(0), train_dataset.dataset.targets[9], querry_embedded)
         test(device, train_dataset, test_loader )
 
 

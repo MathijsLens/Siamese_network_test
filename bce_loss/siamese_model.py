@@ -45,7 +45,7 @@ class SiameseNetwork(nn.Module):
 
     def forward_once(self, x):
         output=self.resnet(x)
-        output=output.view(output.size()[0], -1)
+        output=output.view(output.size()[0], -1) # flatten tensor
         return output
     
     def forward(self, in1, in2):
