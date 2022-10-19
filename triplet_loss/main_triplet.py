@@ -16,39 +16,33 @@ from mnist_triplet import Triplet_MNIST
 from triplet_siamese_model import Triplet_SiameseNetwork
 from triplet_loss import clac_euclidian
 
-
-def calc_dist(x1, x2):
-    return np.power((x1-x2), 2).sum(1)
-
-def min_dist(test_embedding, querry_embedded):
-    dist=[]
-    for i in querry_embedded:
-        try: 
-            dist.append(calc_dist(test_embedding, i))
-        except:
-            dist.append(clac_euclidian(test_embedding, i))
-    min_value=min(dist)
-    return dist.index(min_value), min_value
+def load_img_label(index, test_loader):
+    for i, sample in enumerate(test_loader):
+        if i== index:
+            break
+    batch_index=random.randint(0, len(sample[0]))
+    print("picture ", batch_index, " from batch ", index)
+    # plt.imshow(sample[0][batch_index].permute(1, 2, 0) )
+    # plt.show()
+    return sample[0][batch_index].unsqueeze(0), sample[1][batch_index]
 
 
-def min_torch(test_embedding, querry_embedded, device):
-    dist=torch.Tensor(1000, 10).to(device)
-    # dist=dist[:,None]
+def min_torch(config, test_embedding, querry_embedded, device):
+    if config['test_batch']:
+        dist=torch.Tensor(config['test_batch'], config['numb_classes']).to(device)
+    else :
+        dist=torch.Tensor(1, config['numb_classes']).to(device)
     for index, i in enumerate(querry_embedded):
         tensor_dist=(clac_euclidian(test_embedding, i))
         dist[:,index]=tensor_dist
     return torch.min(dist, 1)
 
 
-def detect(model, test_img, test_label, querry_embedded):            
-    test_embedding= model(test_img).cpu().numpy()
-        
-    label, distance=min_dist(test_embedding, querry_embedded)
-    print("detected label = ", label, " The distance was ", distance, " the true label was ", test_label)
-    
-def detect_batch(model,device, anchor_img, anchor_label, querry_embedded):
+
+"""returns a list containing true label in GT_L[0] and the detected label in GT_l[1]"""
+def detect(config, model,device, anchor_img, anchor_label, querry_embedded):
     test_embedding=model(anchor_img.to(device))
-    dist, label=min_torch(test_embedding, querry_embedded, device)
+    dist, label=min_torch(config, test_embedding, querry_embedded, device)
     true_list=[[], []]
     true_list[0]=anchor_label.to(device)
     true_list[1]=label
@@ -66,15 +60,35 @@ def test(config, device, train_dataset, test_loader):
         for img in train_dataset.querry:
             img=img.unsqueeze(0)
             querry_embedded.append(model(img.to(device)))
-        acc=0       
-        for batch_index, (anchor_img, anchor_label) in enumerate(test_loader):
-            GT_l=detect_batch(model,device, anchor_img.to(device), anchor_label, querry_embedded)
-            for x,y in zip(GT_l[0], GT_l[1]):
-                if x==y: 
-                    acc+=1
-            print("the acc after ", batch_index, "batch is ", acc/((batch_index+1)*1000))
-        acc/=len(test_loader)
-        print("the total acc for test_set is ", acc/1000.0)
+        acc=0
+        
+        
+        #test on batches of images: 
+        if config['test_batch']:       
+            for batch_index, (anchor_img, anchor_label) in enumerate(test_loader):
+                GT_l=detect(config, model,device, anchor_img.to(device), anchor_label, querry_embedded)
+                for x,y in zip(GT_l[0], GT_l[1]):
+                    if x==y: 
+                        acc+=1
+                print("the acc after ", batch_index, "batch is ", acc/((batch_index+1)*config['test_batch']))
+            acc/=len(test_loader)
+            print("the total acc for test_set is ", acc/config['test_batch'])
+        # test on single image
+        else:
+            index= random.randint(0, len(test_loader)) # sample a test image
+            anchor_img, anchor_label= load_img_label(index, test_loader)
+            GT_l=detect(config, model, device, anchor_img.to(device), anchor_label, querry_embedded)
+            x,y = GT_l[0], GT_l[1]
+            if x==y:
+                print("correctly classifyed as ",torch.IntTensor.item(GT_l[0]))
+            else: 
+                print("wrongly classifyed as ",torch.IntTensor.item((GT_l[1])) , "instead of ",torch.IntTensor.item(GT_l[0]))
+                
+            
+            
+
+
+
 
 def train(model, device, train_loader, optim, epoch, writer=None):
     model.train() 
@@ -109,7 +123,7 @@ def read_yaml():
     return config
 
 
-def main(Train=True):
+def main():
     config=read_yaml()
     torch.manual_seed(config['seed'])
 
@@ -152,4 +166,4 @@ def main(Train=True):
 
 
 if __name__ == '__main__':
-    main(True)
+    main()
