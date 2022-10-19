@@ -29,7 +29,7 @@ def load_img_label(index, test_loader):
 
 def min_torch(config, test_embedding, querry_embedded, device):
     if config['test_batch']:
-        dist=torch.Tensor(config['test_batch'], config['numb_classes']).to(device)
+        dist=torch.Tensor(config['test_batch_size'], config['numb_classes']).to(device)
     else :
         dist=torch.Tensor(1, config['numb_classes']).to(device)
     for index, i in enumerate(querry_embedded):
@@ -70,9 +70,9 @@ def test(config, device, train_dataset, test_loader):
                 for x,y in zip(GT_l[0], GT_l[1]):
                     if x==y: 
                         acc+=1
-                print("the acc after ", batch_index, "batch is ", acc/((batch_index+1)*config['test_batch']))
+                # print("the acc after ", batch_index, "batch is ", acc/((batch_index+1)*config['test_batch_size']))
             acc/=len(test_loader)
-            print("the total acc for test_set is ", acc/config['test_batch'])
+            print("the total acc for test_set is ", acc/config['test_batch_size'])
         # test on single image
         else:
             index= random.randint(0, len(test_loader)) # sample a test image
@@ -90,13 +90,13 @@ def test(config, device, train_dataset, test_loader):
 
 
 
-def train(model, device, train_loader, optim, epoch, writer=None):
+def train(config, model, device, train_loader, optim, epoch, writer=None):
     model.train() 
 # triplet loss criterion: 
     criterion = TripletLoss()
     # trainloop: 
     
-    for batch_index, (config, anchor_img, pos_img, neg_img, anchor_label) in enumerate(train_loader):
+    for batch_index, (anchor_img, pos_img, neg_img, anchor_label) in enumerate(train_loader):
         anchor_img, pos_img, neg_img, anchor_label=anchor_img.to(device), pos_img.to(device),neg_img.to(device),anchor_label.to(device)
         optim.zero_grad()
         anchor_out  = model(anchor_img)
@@ -107,7 +107,7 @@ def train(model, device, train_loader, optim, epoch, writer=None):
         loss.backward()
         optim.step()
         
-        if batch_index % config.log_interval ==0: 
+        if batch_index % config['log_interval'] ==0: 
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format( epoch, batch_index *len(anchor_img), len(train_loader.dataset), 
                                                                             100.0*batch_index /len(train_loader), loss.item()))
             if writer:
@@ -117,7 +117,7 @@ def train(model, device, train_loader, optim, epoch, writer=None):
 def read_yaml():
     import yaml
     #read yaml file
-    with open('config.yaml') as file:
+    with open('../config.yaml') as file:
         config= yaml.safe_load(file)
     print(config)
     return config
@@ -138,7 +138,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_dataset,batch_size=config['batch_size'], shuffle=True  )
     test_loader = torch.utils.data.DataLoader(test_dataset,batch_size=config['test_batch_size'], shuffle=True )
 
-    writer=SummaryWriter(f'runs/siamese/test')
+    writer=SummaryWriter(f'../runs/triplet/test')
     
     model = Triplet_SiameseNetwork().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=config['learning_rate'])
@@ -147,12 +147,14 @@ def main():
     
     if config['train_net']:
         for epoch in range(1, config['epoch'] + 1):
-            train(model, device, train_loader, optimizer, epoch, writer)
+            train(config, model, device, train_loader, optimizer, epoch, writer)
+            test(config, device, train_dataset, test_loader )
             scheduler.step()
         if config['save_model']:
             torch.save({"model_state_dict": model.state_dict(),
                 "optimzier_state_dict": optimizer.state_dict()
             }, "../saved_models/triplet_loss.pth")
+        print("done training!")
     
     else: 
         test(config, device, train_dataset, test_loader )

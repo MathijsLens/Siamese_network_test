@@ -7,7 +7,7 @@ def clac_euclidian(x1, x2):
     
     
 class TripletLoss(nn.Module):
-    def __init__(self, margin=10.0):
+    def __init__(self, margin=1.0):
         super(TripletLoss, self).__init__()
         self.margin=margin
         
