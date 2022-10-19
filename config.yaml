@@ -1,0 +1,25 @@
+# configfile for triplet_loss dir: 
+
+numb_classes: 10
+#training settings:
+batch_size: 64
+test_batch_size: 1000
+epoch: 5
+learning_rate: 0.1
+# learningrate step gamma: 
+gamma: 0.7
+cuda: True
+#random seed
+seed: 42
+# wait nmbr of batches befor logging
+log_interval: 10
+save_model: True
+
+
+# path to dataset:
+path_dataset: "../../datasets"
+
+train_net: False
+
+# whenn in test mode, test for a batch or test for sigle image
+test_batch: True

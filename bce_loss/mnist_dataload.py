@@ -8,9 +8,9 @@ import numpy as np
 
 num_classes=10
 # data class for MNIST dataset
-class APP_MATCHER(Dataset):
+class MNIST_BCE(Dataset):
     def __init__(self, root, train, download=False):
-        super(APP_MATCHER, self).__init__()
+        super( MNIST_BCE, self).__init__()
         self.dataset= datasets.MNIST(root, train, download=download)
         self.data= self.dataset.data.unsqueeze(1).clone()   # ads a channel dimention to the images 
         
