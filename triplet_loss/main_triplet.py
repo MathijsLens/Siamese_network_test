@@ -55,9 +55,9 @@ def detect_batch(model,device, anchor_img, anchor_label, querry_embedded):
     return true_list
         
             
-def test(device, train_dataset, test_loader):
+def test(config, device, train_dataset, test_loader):
     model = Triplet_SiameseNetwork()
-    model.load_state_dict(torch.load("saved_models/trained_model.pth")['model_state_dict'])
+    model.load_state_dict(torch.load("../saved_models/trained_model.pth")['model_state_dict'])
     model.eval()
     model.to(device)
     with torch.no_grad():    
@@ -66,7 +66,7 @@ def test(device, train_dataset, test_loader):
         for img in train_dataset.querry:
             img=img.unsqueeze(0)
             querry_embedded.append(model(img.to(device)))
-        acc=0
+        acc=0       
         for batch_index, (anchor_img, anchor_label) in enumerate(test_loader):
             GT_l=detect_batch(model,device, anchor_img.to(device), anchor_label, querry_embedded)
             for x,y in zip(GT_l[0], GT_l[1]):
@@ -76,13 +76,13 @@ def test(device, train_dataset, test_loader):
         acc/=len(test_loader)
         print("the total acc for test_set is ", acc/1000.0)
 
-def train(args, model, device, train_loader, optim, epoch, writer=None):
+def train(model, device, train_loader, optim, epoch, writer=None):
     model.train() 
 # triplet loss criterion: 
     criterion = TripletLoss()
     # trainloop: 
     
-    for batch_index, (anchor_img, pos_img, neg_img, anchor_label) in enumerate(train_loader):
+    for batch_index, (config, anchor_img, pos_img, neg_img, anchor_label) in enumerate(train_loader):
         anchor_img, pos_img, neg_img, anchor_label=anchor_img.to(device), pos_img.to(device),neg_img.to(device),anchor_label.to(device)
         optim.zero_grad()
         anchor_out  = model(anchor_img)
@@ -93,90 +93,55 @@ def train(args, model, device, train_loader, optim, epoch, writer=None):
         loss.backward()
         optim.step()
         
-        if batch_index % args.log_interval ==0: 
+        if batch_index % config.log_interval ==0: 
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format( epoch, batch_index *len(anchor_img), len(train_loader.dataset), 
                                                                             100.0*batch_index /len(train_loader), loss.item()))
             if writer:
                 writer.add_scalar('Training_loss', loss, global_step=epoch* len(train_loader)+batch_index)
-            if args.dry_run:
-                break
 
+
+def read_yaml():
+    import yaml
+    #read yaml file
+    with open('config.yaml') as file:
+        config= yaml.safe_load(file)
+    print(config)
+    return config
 
 
 def main(Train=True):
-    #training settings:
-    parser= argparse.ArgumentParser(description='pytorch siamese network example')
-    # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch Siamese network Example')
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
-                        help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=5, metavar='N',
-                        help='number of epochs to train (default: 14)')
-    parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
-                        help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
-                        help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
-    parser.add_argument('--dry-run', action='store_true', default=False,
-                        help='quickly check a single pass')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=True,
-                        help='For Saving the current Model')
-    args = parser.parse_args()
+    config=read_yaml()
+    torch.manual_seed(config['seed'])
 
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
-
-    torch.manual_seed(args.seed)
-
-    if use_cuda:
+    if config['cuda']:
         device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
     else:
         device = torch.device("cpu")
 
-    train_kwargs = {'batch_size': args.batch_size}
-    test_kwargs = {'batch_size': args.test_batch_size}
-    if use_cuda:
-        cuda_kwargs = {'num_workers': 1,
-                        'pin_memory': True,
-                        'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
+    train_dataset =Triplet_MNIST(config['path_dataset'], train=True, download=True)
+    test_dataset = Triplet_MNIST(config['path_dataset'], train=False)
     
-    train_dataset =Triplet_MNIST('../datasets', train=True, download=True)
-    test_dataset = Triplet_MNIST('../datasets', train=False)
-    
-    train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
+    train_loader = torch.utils.data.DataLoader(train_dataset,batch_size=config['batch_size'], shuffle=True  )
+    test_loader = torch.utils.data.DataLoader(test_dataset,batch_size=config['test_batch_size'], shuffle=True )
 
     writer=SummaryWriter(f'runs/siamese/test')
     
     model = Triplet_SiameseNetwork().to(device)
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    optimizer = optim.Adadelta(model.parameters(), lr=config['learning_rate'])
 
-    scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+    scheduler = StepLR(optimizer, step_size=1, gamma=config['gamma'])
     
-    if Train:
-        for epoch in range(1, args.epochs + 1):
-            train(args, model, device, train_loader, optimizer, epoch, writer)
+    if config['train_net']:
+        for epoch in range(1, config['epoch'] + 1):
+            train(model, device, train_loader, optimizer, epoch, writer)
             scheduler.step()
-        
-        torch.save({"model_state_dict": model.state_dict(),
+        if config['save_model']:
+            torch.save({"model_state_dict": model.state_dict(),
                 "optimzier_state_dict": optimizer.state_dict()
-            }, "saved_models/trained_model.pth")
+            }, "../saved_models/triplet_loss.pth")
     
     else: 
-        test(device, train_dataset, test_loader )
+        test(config, device, train_dataset, test_loader )
 
 
 
@@ -187,4 +152,4 @@ def main(Train=True):
 
 
 if __name__ == '__main__':
-    main(False)
+    main(True)
