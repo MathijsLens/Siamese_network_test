@@ -13,8 +13,6 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 import mnist_dataload
 import siamese_model
-from triplet_loss import TripletLoss
-from mnist_triplet import Triplet_MNIST
 
 
 def train(args, model, device, train_loader, optim, epoch, writer=None):
