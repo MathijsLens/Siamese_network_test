@@ -1,0 +1,15 @@
+File containing the evaluation of different parrameters for the Networks on the MNist dataset.
+
+
+BCE:
+run for 1 epoch
+Learning_rate [1,0.1,0.001]
+batchsize [64, 128, 256]
+
+best: lr 1 and 0.1 combined with 64 batchsize
+
+
+TRIPLET_LOSS:
+Learning_rate
+batchsize
+

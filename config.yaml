@@ -1,11 +1,14 @@
 # configfile for triplet_loss dir: 
+hypersearch: False
 
 numb_classes: 10
 #training settings:
+# batch_size: [64, 128, 256]
 batch_size: 64
 test_batch_size: 1000
-epoch: 5
-learning_rate: 0.1
+epoch: 1
+# learning_rate: [1,0.1,0.001]
+learning_rate: 1.0
 # learningrate step gamma: 
 gamma: 0.7
 cuda: True
@@ -19,7 +22,7 @@ save_model: True
 # path to dataset:
 path_dataset: "../../datasets"
 
-train_net: False
+train_net: True
 
 # whenn in test mode, test for a batch or test for sigle image
 test_batch: True
